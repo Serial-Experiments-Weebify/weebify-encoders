@@ -1,0 +1,12 @@
+{
+  "name": "syncoder",
+  "version": "1.0.0",
+  "description": "Automatically convert anime to a web friendly format",
+  "main": "src/index.js",
+  "keywords": [],
+  "author": "Matic Babnik",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2"
+  }
+}

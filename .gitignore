@@ -1,0 +1,8 @@
+#Nodejs stuff
+node_modules/
+
+# Test media files
+*.png
+*.jpeg
+*.mp4
+*.mkv
