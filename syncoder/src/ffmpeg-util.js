@@ -82,7 +82,7 @@ async function ffmpegEncode(file, streamData, duration, outFile) {
     const audioArgs = ['-map', `0:${streamData.audio.index}`, '-c:a', 'aac'];
 
 
-    const filters = ['format=yuv420p'];
+    const filters = ['format=yuv420p','scale=-1:720'];
 
     if (streamData.subtitles)
         filters.push(`subtitles=${ffEscape(ffEscape(file))}:si=${streamData.subtitles.subIndex}`);
@@ -98,39 +98,17 @@ async function ffmpegEncode(file, streamData, duration, outFile) {
     if (globalThis.verbose || true) //TODO: remove || true
         console.log(`command: \nffmpeg ${chalk.blackBright(args.join(' '))}`);
 
+    if (globalThis.dryrun) return;
+    
     const encoderProcess = childProc.spawn('ffmpeg', args, {});
-    // const bar = new cliProgress.SingleBar({
-    //     format: 'Encoding [{bar}] {percentage}% | ETA: {eta}s | {speed}x ({fps}fps)',
-    //     hideCursor: true,
-    // })
-    // bar.start(duration, 0, { fps: 0, speed: 0 });
 
-    let fps = '0', speed = '0';
     console.log('Redirecting output...\n')
     encoderProcess.stdout.pipe(process.stdout);
     encoderProcess.stderr.pipe(process.stderr);
 
-    // encoderProcess.stderr.on('data', data => {
-
-    //console.log(data.toString());
-    // const pdata = data.toString();
-    // const completed = parseTime(pdata)
-
-    // fps = pdata.match(fpsRegex)?.[2] ?? fps;
-    // speed = pdata.match(speedRegex)?.[2] ?? speed;
-
-    // if (completed && fps && speed)
-    //     bar.update(completed, { fps, speed })
-    // })
-    // encoderProcess.stdout.on('data', data=>{
-    //     console.log(data.toString());
-    // })
-    // encoderProcess.on('exit',signal=>console.log({signal}))
 
     await waitFor(encoderProcess, "exit");
     console.log('exit');
-    // bar.update(duration);
-    // bar.stop();
 }
 
 module.exports = {
