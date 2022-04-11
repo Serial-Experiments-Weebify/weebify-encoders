@@ -1,15 +1,54 @@
 const { magentaBright } = require("chalk");
+const { program, InvalidArgumentError } = require("commander");
+const { access } = require("fs/promises");
+const fs = require("fs");
+const { redBright } = require("chalk");
 
 const { ffprobe, ffmpegEncode, getDuration } = require("./ffmpeg-util");
 const findStream = require("./find-stream");
 
-async function main(args) {
-    if (args.includes("--dryrun")) {
-        globalThis.dryrun = true;
+function vresCheck(input) {
+    const parsedValue = parseInt(input, 10);
+
+    if (isNaN(parsedValue)) {
+        throw new InvalidArgumentError("Not a number");
     }
-    
+    if (parsedValue < 144 || parsedValue > 2160)
+        throw new InvalidArgumentError(
+            `${parsedValue} is not a valid vertical resolution.`
+        );
+
+    return parsedValue;
+}
+
+program
+    .name("syncoder")
+    .description("CLI to encode anime")
+    .option("-d --dryrun", "Just output the ffmpeg command")
+    .option("-u --upload", "Upload to S3")
+    .command("encode")
+    .argument("<input>")
+    .argument("<output>")
+    .option("-q, --quality <quality>", "vertical resolution", vresCheck, 720)
+    .action(async function (input, output, c) {
+
+        console.log(input)
+        console.log(output)
+        try {
+            const a = await access(input, fs.constants.R_OK);
+        } catch {
+            console.log(
+                redBright("Could not open the input file. Does it exist?")
+            );
+            process.exit(-1);
+        }
+
+        main(input, output, this.opts().quality);
+    });
+
+async function main(input, output, hres) {
     // get file info
-    const data = await ffprobe(args[0]);
+    const data = await ffprobe(input);
     //print out all streams
     console.log(magentaBright("Streams in source file:"));
     console.table(
@@ -39,12 +78,8 @@ async function main(args) {
     console.log(magentaBright("Output streams:"));
     console.table(streams, ["index", "tags"]);
 
-    ffmpegEncode(args[0], streams, await getDuration(args[0]), args[1]);
+    ffmpegEncode(input, streams, await getDuration(input), hres, output);
 }
 
-main(process.argv.slice(2));
-
-//don't exit if inspector is attached
-if (require("inspector").url()) {
-    setInterval(() => {}, 10e100);
-}
+program.parse(process.argv);
+//main(process.argv.slice(2));
