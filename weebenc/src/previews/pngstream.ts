@@ -1,23 +1,28 @@
-const { Buffer } = require('buffer');
+import { Buffer } from "buffer"
+import { Readable } from "stream"
+
+
 const PNG_HEADER = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+const HEADER_SIZE = PNG_HEADER.length;
+
+const CHUNK_NAME_SIZE = 4;
+const CHUNK_LENGTH_SIZE = 4;
+const CHUNK_HEADER_SIZE = CHUNK_NAME_SIZE + CHUNK_LENGTH_SIZE;
+const CHUNK_CHECKSUM_SIZE = 4;
+
+const END_CHUNK = "IEND";
+
 const BUFFER_SIZE = 2 * 2 ** 20; // 2MiB
 
-/**
- * Takes in a stream and calls a callback with the PNG buffers found.
- * @param {ReadableStream} stream The stream to read from.
- * @param {(buffer?:Buffer,size?:Number)=>void} callback Recieves the PNG buffers. if the buffer is null, the stream has ended.
- * @returns {Promise<void>} A promise that resolves when the stream closes.
- */
-function getPngBuffers(stream, callback) {
+export function getPngBuffers(stream: Readable, callback: (buffer?: Buffer, size?: number) => void): Promise<void> {
     return new Promise((resolve) => {
         let currentImage = Buffer.alloc(BUFFER_SIZE);
-
-        let chunkHeader = Buffer.alloc(8); //contains the size+type for the next chunk
+        let chunkHeader = Buffer.alloc(CHUNK_HEADER_SIZE);
 
         let cur = {
             inPng: false,
             bytesRead: 0, // bytes read for the current image
-            nextChunkPosition: 8,
+            nextChunkPosition: HEADER_SIZE,
             iend: false // when this is true nextChunkPosition means EOF
         }; //holds current status
 
@@ -27,7 +32,7 @@ function getPngBuffers(stream, callback) {
                 if (!cur.inPng) {
                     if (buffer[i] == PNG_HEADER[cur.bytesRead]) {
                         cur.bytesRead++;
-                        if (cur.bytesRead == 8) {
+                        if (cur.bytesRead == HEADER_SIZE) {
                             cur.inPng = true;
                             PNG_HEADER.copy(currentImage, 0);
                         }
@@ -37,7 +42,7 @@ function getPngBuffers(stream, callback) {
                         cur = {
                             inPng: false,
                             bytesRead: 0,
-                            nextChunkPosition: 8,
+                            nextChunkPosition: HEADER_SIZE,
                             iend: false
                         }
                     }
@@ -55,24 +60,24 @@ function getPngBuffers(stream, callback) {
                         cur = {
                             inPng: false,
                             bytesRead: 0,
-                            nextChunkPosition: 8,
+                            nextChunkPosition: HEADER_SIZE,
                             iend: false
                         }
                         i--; //wtf?
                         continue;
                     } else { //reading between the PNG header and IEND
 
-                        if (cur.bytesRead >= cur.nextChunkPosition && cur.bytesRead - 8 < cur.nextChunkPosition) { //inside the chunk header
+                        if (cur.bytesRead >= cur.nextChunkPosition && cur.bytesRead - CHUNK_HEADER_SIZE < cur.nextChunkPosition) { //inside the chunk header
                             const chunkIndex = cur.bytesRead - cur.nextChunkPosition;
                             chunkHeader[chunkIndex] = buffer[i];
 
-                            if (chunkIndex === 7) { // finished reading the chunk header
+                            if (chunkIndex === (CHUNK_HEADER_SIZE - 1)) { // finished reading the chunk header
                                 let size = chunkHeader.readUInt32BE(0);
-                                let type = chunkHeader.subarray(4, 8).toString("ascii");
+                                let type = chunkHeader.subarray(CHUNK_LENGTH_SIZE, CHUNK_HEADER_SIZE).toString("ascii");
 
-                                cur.nextChunkPosition += size + 12;
+                                cur.nextChunkPosition += size + CHUNK_HEADER_SIZE + CHUNK_CHECKSUM_SIZE;
 
-                                cur.iend = type === "IEND";
+                                cur.iend = type === END_CHUNK;
                             }
                         }
 
@@ -83,15 +88,8 @@ function getPngBuffers(stream, callback) {
         })
 
         stream.on('close', () => {
-            callback(null, null);
-
-            delete currentImage;
-            delete chunkHeader; //probably not necessary, can't hurt
+            callback(undefined, undefined);
             resolve();
         })
     });
-}
-
-module.exports = {
-    getPngBuffers
 }
