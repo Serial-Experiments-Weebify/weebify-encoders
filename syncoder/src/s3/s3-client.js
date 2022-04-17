@@ -37,6 +37,7 @@ async function startUpload(inputFile) {
 
     let child = spawn("node", [workerFile, fpath, fname], DETACH_OPTIONS);
     try {
+        console.log(`S3 Worker running @ ${child.pid}`);
 
         const msg = await Promise.race([
             message(child),
@@ -45,6 +46,7 @@ async function startUpload(inputFile) {
             timeout(5000)
         ]);
         console.log(msg[0])
+        child.disconnect
         child.unref(); 
         
     } catch (e) {

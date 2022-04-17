@@ -80,7 +80,6 @@ async function main() {
 
 setTimeout(() => {
     main().catch((x) => {
-        fs.writeFileSync("err",x);
         process.send(["error", x]);
     });
 }, 10);  //this is a horrible hack...
