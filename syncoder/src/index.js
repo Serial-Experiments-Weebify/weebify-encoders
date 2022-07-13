@@ -31,9 +31,6 @@ program
     .argument("<output>")
     .option("-q, --quality <quality>", "vertical resolution", vresCheck, 720)
     .action(async function (input, output, c) {
-
-        console.log(input)
-        console.log(output)
         try {
             const a = await access(input, fs.constants.R_OK);
         } catch {
@@ -76,7 +73,13 @@ async function main(input, output, hres) {
     }
 
     console.log(magentaBright("Output streams:"));
-    console.table(streams, ["index", "tags"]);
+    const streamTable = Object.entries(streams).map(([key, value]) => ({
+        type: key,
+        index: value.index,
+        lang: value.tags?.language ?? "?",
+        title: value.tags?.title ?? "?",
+    }));
+    console.table(streamTable);
 
     ffmpegEncode(input, streams, await getDuration(input), hres, output);
 }
