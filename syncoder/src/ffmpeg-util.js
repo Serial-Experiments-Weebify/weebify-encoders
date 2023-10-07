@@ -89,23 +89,31 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile) {
     const baseArgs = [
         "-y",
         "-hide_banner",
-        "-loglevel", "16",
+        "-loglevel",
+        "16",
         "-stats",
-        "-i", file,
+        "-i",
+        file,
         "-movflags",
         "+faststart",
-        "-brand", "mp42",
+        "-brand",
+        "mp42",
     ];
     //? point to video stream and select video codec
     const videoArgs = [
-        "-map", `0:${streamData.video.index}`,
-        "-c:v", "libx264",
+        "-map",
+        `0:${streamData.video.index}`,
+        "-c:v",
+        "libx264",
     ];
     //? point to audio stream, select audio codec, downmix to 2 channels
     const audioArgs = [
-        "-map", `0:${streamData.audio.index}`,
-        "-c:a", "aac",
-        "-ac", "2",
+        "-map",
+        `0:${streamData.audio.index}`,
+        "-c:a",
+        "aac",
+        "-ac",
+        "2",
     ];
 
     const filters = ["format=yuv420p", `scale=-1:${hres}`];
@@ -121,12 +129,20 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile) {
 
     //? set the output file format, some libx264 settings and output file name
     const encoderArgs = [
-        "-f", "mp4",
-        "-crf", "23",
-        "-preset", "slow",
-        "-tune", "animation",
-        "-bf", "2",
-        "-g", "90",
+        "-f",
+        "mp4",
+        "-crf",
+        "22",
+        "-preset",
+        "veryslow",
+        "-tune",
+        "animation",
+        "-level",
+        "5.0",
+        "-bf",
+        "2",
+        "-g",
+        "300",
         outFile,
     ];
 
