@@ -13,7 +13,7 @@ function vresCheck(input) {
     if (isNaN(parsedValue)) {
         throw new InvalidArgumentError("Not a number");
     }
-    if (parsedValue < 144 || parsedValue > 2160)
+    if (parsedValue < 72 || parsedValue > 2160)
         throw new InvalidArgumentError(
             `${parsedValue} is not a valid vertical resolution.`
         );
