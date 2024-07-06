@@ -1,7 +1,6 @@
 const childProc = require("child_process");
 const chalk = require("chalk");
 const { program } = require("commander");
-const { startUpload } = require("./s3/s3-client");
 
 function $(strings, ...values) {
     let command = "";
@@ -84,7 +83,7 @@ function parseTime(msg) {
     );
 }
 
-async function ffmpegEncode(file, streamData, duration, hres, outFile) {
+async function ffmpegEncode(file, streamData, duration, hres, outFile, preset) {
     //? set yes to overwrite, some stdout settings, input file and faststart
     const baseArgs = [
         "-y",
@@ -94,29 +93,22 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile) {
         "-stats",
         "-i",
         file,
-        "-movflags",
-        "+faststart",
-        "-brand",
-        "mp42",
+        ...preset.baseArgs
     ];
-    //? point to video stream and select video codec
+
     const videoArgs = [
         "-map",
         `0:${streamData.video.index}`,
-        "-c:v",
-        "libx264",
+        ...preset.videoArgs
     ];
-    //? point to audio stream, select audio codec, downmix to 2 channels
+
     const audioArgs = [
         "-map",
         `0:${streamData.audio.index}`,
-        "-c:a",
-        "aac",
-        "-ac",
-        "2",
+        ...preset.audioArgs
     ];
 
-    const filters = ["format=yuv420p", `scale=-1:${hres}`];
+    const filters = [`scale=-1:${hres}`];
 
     if (streamData.subtitles)
         filters.push(
@@ -127,22 +119,8 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile) {
 
     const filterArgs = ["-vf", filters.join(",")];
 
-    //? set the output file format, some libx264 settings and output file name
     const encoderArgs = [
-        "-f",
-        "mp4",
-        "-crf",
-        "22",
-        "-preset",
-        "veryslow",
-        "-tune",
-        "animation",
-        "-level",
-        "5.0",
-        "-bf",
-        "2",
-        "-g",
-        "300",
+        ...preset.encoderArgs,
         outFile,
     ];
 
@@ -166,10 +144,6 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile) {
 
     await waitFor(encoderProcess, "exit");
 
-    if (program.opts().upload) {
-        console.log("Uploading to S3...\n"); //might work???
-        await startUpload(outFile);
-    }
     process.exit(0);
 }
 

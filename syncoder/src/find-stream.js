@@ -75,7 +75,7 @@ async function findSubStream(data, lang) {
     console.info(cyanBright(`[SUBS] Found ${subs.length} sub streams`));
     if (subs.length == 0) {
         console.warn(yellowBright("[SUBS] No sub streams found!"));
-        return null;
+        return false;
     }
 
     //remove unsupported sub codecs
@@ -85,7 +85,7 @@ async function findSubStream(data, lang) {
     );
     if (subs.length == 0) {
         console.warn(yellowBright("[SUBS] No supported sub streams found!"));
-        return null;
+        return false;
     }
 
     //try to match language
@@ -113,7 +113,7 @@ async function findSubStream(data, lang) {
                     `[SUBS] No sub streams with language ${lang} or undefined.`
                 )
             );
-            return null;
+            return false;
         } else if (subs.length == 1) {
             console.info(cyanBright("[SUBS] Returning last remaining stream"));
             return subs[0];

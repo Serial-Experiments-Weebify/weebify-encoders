@@ -7,3 +7,6 @@ node_modules/
 *.mp4
 *.mkv
 *.zip
+*.webm
+# openCL lookahead
+*.clbin
