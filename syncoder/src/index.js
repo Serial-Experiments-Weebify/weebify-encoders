@@ -8,88 +8,109 @@ const presets = require("./presets");
 const { ffprobe, ffmpegEncode, getDuration } = require("./ffmpeg-util");
 const findStream = require("./find-stream");
 
+function threadsCheck(input) {
+    const parsedValue = parseInt(input, 10);
+
+    if (isNaN(parsedValue)) {
+        throw new InvalidArgumentError("Not a number");
+    }
+
+    return parsedValue < 0 ? 0 : parsedValue;
+}
+
 function vresCheck(input) {
-  const parsedValue = parseInt(input, 10);
+    const parsedValue = parseInt(input, 10);
 
-  if (isNaN(parsedValue)) {
-    throw new InvalidArgumentError("Not a number");
-  }
-  if (parsedValue < 72 || parsedValue > 2160)
-    throw new InvalidArgumentError(
-      `${parsedValue} is not a valid vertical resolution.`
-    );
+    if (isNaN(parsedValue)) {
+        throw new InvalidArgumentError("Not a number");
+    }
+    if (parsedValue < 72 || parsedValue > 2160)
+        throw new InvalidArgumentError(
+            `${parsedValue} is not a valid vertical resolution.`
+        );
 
-  return parsedValue;
+    return parsedValue;
 }
 
 function presetCheck(name) {
-  if (!(name in presets))
-    throw new InvalidArgumentError(`Preset ${name} does not exist`);
+    if (!(name in presets))
+        throw new InvalidArgumentError(`Preset ${name} does not exist`);
 
-  return presets[name];
+    return presets[name];
 }
 
 program
-  .name("syncoder")
-  .description("CLI to encode anime")
-  .option("-d --dryrun", "Just output the ffmpeg command")
-  .command("encode")
-  .argument("<input>")
-  .argument("<output>")
-  .option("-q, --quality <quality>", "vertical resolution", vresCheck, 1080)
-  .option("-a, --audio <audio>", "audio language", "jpn")
-  .option("-p, --preset <preset>", "encoding preset", presetCheck, "h264")
-  .action(async function (input, output, c) {
-    try {
-      const a = await access(input, fs.constants.R_OK);
-    } catch {
-      console.log(redBright("Could not open the input file. Does it exist?"));
-      process.exit(-1);
-    }
+    .name("syncoder")
+    .description("CLI to encode anime")
+    .option("-d --dryrun", "Just output the ffmpeg command")
+    .command("encode")
+    .argument("<input>")
+    .argument("<output>")
+    .option("-q, --quality <quality>", "vertical resolution", vresCheck, 1080)
+    .option("-a, --audio <audio>", "audio language", "jpn")
+    .option("-p, --preset <preset>", "encoding preset", presetCheck, "h264")
+    .option("-t, --threads <threads>", "number of threads", threadsCheck, 0)
+    .action(async function (input, output, c) {
+        try {
+            await access(input, fs.constants.R_OK);
+        } catch {
+            console.log(
+                redBright("Could not open the input file. Does it exist?")
+            );
+            process.exit(-1);
+        }
 
-    main(input, output, this.opts());
-  });
+        main(input, output, this.opts());
+    });
 
-async function main(input, output, { quality, audio, preset }) {
+async function main(input, output, { quality, audio, preset, threads }) {
     console.log(preset);
-  // get file info
-  const data = await ffprobe(input);
-  //print out all streams
-  console.log(magentaBright("Streams in source file:"));
-  console.table(
-    data.streams.map((stream) => ({
-      type: stream.codec_type,
-      codec: stream.codec_name,
-      lang: stream.tags?.language ?? null,
-      title: stream.tags?.title ?? stream.tags?.filename,
-    }))
-  );
+    // get file info
+    const data = await ffprobe(input);
+    //print out all streams
+    console.log(magentaBright("Streams in source file:"));
+    console.table(
+        data.streams.map((stream) => ({
+            type: stream.codec_type,
+            codec: stream.codec_name,
+            lang: stream.tags?.language ?? null,
+            title: stream.tags?.title ?? stream.tags?.filename,
+        }))
+    );
 
-  const streams = {
-    video: findStream.video(data),
-    audio: findStream.audio(data, audio),
-    subtitles: await findStream.sub(data, "eng"),
-  };
+    const streams = {
+        video: findStream.video(data),
+        audio: findStream.audio(data, audio),
+        subtitles: await findStream.sub(data, "eng"),
+    };
 
-  if (streams.subtitles) {
-    //subtitle filter counts streams differently
-    streams.subtitles.subIndex = 0;
-    for (let i = 0; i < streams.subtitles.index; i++) {
-      if (data.streams[i].codec_type === "subtitle")
-        streams.subtitles.subIndex++;
+    if (streams.subtitles) {
+        //subtitle filter counts streams differently
+        streams.subtitles.subIndex = 0;
+        for (let i = 0; i < streams.subtitles.index; i++) {
+            if (data.streams[i].codec_type === "subtitle")
+                streams.subtitles.subIndex++;
+        }
     }
-  }
 
-  console.log(magentaBright("Output streams:"));
-  const streamTable = Object.entries(streams).map(([key, value]) => ({
-    type: key,
-    index: value.index,
-    lang: value.tags?.language ?? "?",
-    title: value.tags?.title ?? "?",
-  }));
-  console.table(streamTable);
+    console.log(magentaBright("Output streams:"));
+    const streamTable = Object.entries(streams).map(([key, value]) => ({
+        type: key,
+        index: value.index,
+        lang: value.tags?.language ?? "?",
+        title: value.tags?.title ?? "?",
+    }));
+    console.table(streamTable);
 
-  ffmpegEncode(input, streams, await getDuration(input), quality, output, preset);
+    ffmpegEncode(
+        input,
+        streams,
+        await getDuration(input),
+        quality,
+        output,
+        preset,
+        threads
+    );
 }
 
 program.parse(process.argv);

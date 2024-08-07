@@ -83,7 +83,7 @@ function parseTime(msg) {
     );
 }
 
-async function ffmpegEncode(file, streamData, duration, hres, outFile, preset) {
+async function ffmpegEncode(file, streamData, _, hres, out, preset, threads) {
     //? set yes to overwrite, some stdout settings, input file and faststart
     const baseArgs = [
         "-y",
@@ -93,19 +93,19 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile, preset) {
         "-stats",
         "-i",
         file,
-        ...preset.baseArgs
+        ...preset.baseArgs,
     ];
 
     const videoArgs = [
         "-map",
         `0:${streamData.video.index}`,
-        ...preset.videoArgs
+        ...preset.videoArgs,
     ];
 
     const audioArgs = [
         "-map",
         `0:${streamData.audio.index}`,
-        ...preset.audioArgs
+        ...preset.audioArgs,
     ];
 
     const filters = [`scale=-1:${hres}`];
@@ -119,14 +119,12 @@ async function ffmpegEncode(file, streamData, duration, hres, outFile, preset) {
 
     const filterArgs = ["-vf", filters.join(",")];
 
-    const encoderArgs = [
-        ...preset.encoderArgs,
-        outFile,
-    ];
+    const encoderArgs = [...preset.encoderArgs, out];
 
     const args = [
         ...baseArgs,
         ...videoArgs,
+        ...["-threads", threads],
         ...audioArgs,
         ...filterArgs,
         ...encoderArgs,
